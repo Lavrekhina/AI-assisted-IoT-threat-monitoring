@@ -22,6 +22,11 @@ This repo is a Python and R workflow for working with `IoT_smart_building_teleme
 
 - `workflow.mermaid` decision flow for reports open in Mermaid Live if you want a PNG
 
+`appendix/`
+
+- `build_appendix_code.py` glue all Python and R into one text file for the report
+- `check_imports.py` quick test that the venv has the main packages
+
 `r/`
 
 - `01_modelling_clustering.R` models and clustering
@@ -34,6 +39,7 @@ This repo is a Python and R workflow for working with `IoT_smart_building_teleme
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python appendix/check_imports.py
 ```
 
 ## Run order
