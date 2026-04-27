@@ -11,17 +11,17 @@ suppressPackageStartupMessages({
 })
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 1) {
-  stop("Usage: Rscript r/01_modelling_clustering.R artifacts/features.parquet")
+if (length(args) >= 1) {
+  features_path <- args[[1]]
+} else {
+  features_path <- "artifacts/features.parquet"
 }
-
-features_path <- args[[1]]
 out_dir <- file.path("artifacts", "r")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 df <- read_parquet(features_path) %>% as_tibble()
 
-# Basic label/score sanity
+# Basic label and score checks
 df <- df %>%
   mutate(
     y_compromise = as.integer(y_compromise),
@@ -29,8 +29,7 @@ df <- df %>%
   ) %>%
   filter(!is.na(anomaly_score))
 
-# --------- Predictive modelling (which features predict compromise?) ----------
-# We intentionally use a simple, explainable baseline + a stronger model
+# Predictive modelling. Simple logit and a random forest
 
 set.seed(42)
 split <- initial_split(df, prop = 0.8, strata = y_compromise)
@@ -76,7 +75,7 @@ rf_m <- metrics(rf_pred, truth = factor(y_compromise), .pred_1)
 write.csv(glm_m, file.path(out_dir, "glm_metrics.csv"), row.names = FALSE)
 write.csv(rf_m, file.path(out_dir, "rf_metrics.csv"), row.names = FALSE)
 
-# Feature importance (RF)
+# Random forest importances
 rf_engine <- extract_fit_engine(rf_fit)
 imp <- tibble::tibble(
   feature = names(rf_engine$variable.importance),
@@ -90,11 +89,10 @@ write.csv(imp, file.path(out_dir, "rf_feature_importance_top25.csv"), row.names 
 p_imp <- ggplot(imp, aes(x = reorder(feature, importance), y = importance)) +
   geom_col(fill = "#2E86AB") +
   coord_flip() +
-  labs(title = "Top RF feature importances (impurity)", x = NULL, y = "importance")
+  labs(title = "Top random forest feature strength by impurity", x = NULL, y = "importance")
 ggsave(file.path(out_dir, "rf_feature_importance_top25.png"), p_imp, width = 10, height = 6, dpi = 160)
 
-# --------- Clustering (unknown behavior groups) ----------
-# Cluster device-hour behavior using numeric telemetry and simple flags.
+# Clustering. Numeric fields from each row
 
 cluster_df <- df %>%
   select(
@@ -111,7 +109,7 @@ num_mat <- cluster_df %>%
   scale() %>%
   as.matrix()
 
-# Choose k with a simple heuristic range; in a report you can show a silhouette plot.
+# k from a few candidates using mean silhouette. You can plot silhouette in the report
 ks <- 2:6
 sil <- sapply(ks, function(k) {
   km <- kmeans(num_mat, centers = k, nstart = 10)

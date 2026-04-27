@@ -15,7 +15,7 @@ def _ensure_dir(p: Path) -> None:
 
 
 def plot_operational_rhythm(df: pd.DataFrame, out_dir: Path) -> None:
-    # Building rhythm: events heatmap by day-of-week x hour (overall and by device type)
+    # Building rhythm. Events heatmap by day of week and hour
     base = (
         df.dropna(subset=["ts"])
         .groupby(["dow_name", "hour"], as_index=False)
@@ -32,7 +32,7 @@ def plot_operational_rhythm(df: pd.DataFrame, out_dir: Path) -> None:
         y="dow_name",
         z="events",
         color_continuous_scale="Blues",
-        title="Building operational rhythm (events by hour × day)",
+        title="Building operational rhythm. Events by hour and day of week",
     )
     fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
     fig.write_html(out_dir / "rhythm_events_heatmap.html")
@@ -53,14 +53,14 @@ def plot_operational_rhythm(df: pd.DataFrame, out_dir: Path) -> None:
             y="dow_name",
             z="comp_events",
             color_continuous_scale="Reds",
-            title="Compromised events rhythm (hour × day)",
+            title="Compromised events rhythm. Hour and day of week",
         )
         fig2.update_layout(margin=dict(l=40, r=20, t=60, b=40))
         fig2.write_html(out_dir / "rhythm_compromises_heatmap.html")
 
 
 def plot_device_drifts(df: pd.DataFrame, out_dir: Path) -> None:
-    # Example drift: bytes_out per device over time, highlighting spikes
+    # Drift check. bytes out per device over time and spikes
     df = df.dropna(subset=["ts"]).copy()
     df["date_hour"] = df["ts"].dt.floor("H")
     agg = (
@@ -81,7 +81,7 @@ def plot_device_drifts(df: pd.DataFrame, out_dir: Path) -> None:
         y="bytes_out",
         color="device_id",
         facet_row="device_type",
-        title="Top outbound devices — hourly bytes_out (spikes/drifts)",
+        title="Top outbound devices. Hourly bytes out. Spikes and drifts",
     )
     fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
     fig.write_html(out_dir / "timeseries_top_outbound_devices.html")
@@ -100,7 +100,7 @@ def plot_anomaly_distributions(df: pd.DataFrame, out_dir: Path) -> None:
         nbins=40,
         barmode="overlay",
         opacity=0.6,
-        title="Anomaly-score distribution: safe vs compromised",
+        title="Anomaly score distribution. Safe and compromised",
         color_discrete_map={"safe": "#2E86AB", "compromised": "#D64550"},
     )
     fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
@@ -116,7 +116,7 @@ def plot_anomaly_distributions(df: pd.DataFrame, out_dir: Path) -> None:
         nbins=30,
         barmode="overlay",
         opacity=0.6,
-        title="Anomaly-score distribution by device type",
+        title="Anomaly score distribution by device type",
         color_discrete_map={"safe": "#2E86AB", "compromised": "#D64550"},
     )
     fig2.update_layout(margin=dict(l=40, r=20, t=60, b=40))
@@ -124,7 +124,7 @@ def plot_anomaly_distributions(df: pd.DataFrame, out_dir: Path) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Time-series patterns & narrative plots.")
+    ap = argparse.ArgumentParser(description="Time series patterns and story plots")
     ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
     ap.add_argument("--out-dir", default="artifacts/plots", help="Output directory for html plots")
     args = ap.parse_args()

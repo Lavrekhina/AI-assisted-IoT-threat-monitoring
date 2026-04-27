@@ -15,10 +15,10 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     df["date"] = ts.dt.date
     df["hour"] = ts.dt.hour
     df["minute"] = ts.dt.minute
-    df["day_of_week"] = ts.dt.dayofweek  # 0=Mon
+    df["day_of_week"] = ts.dt.dayofweek  # Monday is zero
     df["dow_name"] = ts.dt.day_name()
 
-    # Cyclical encoding (for models + clustering)
+    # Sine cosine for time for models
     df["hour_sin"] = np.sin(2 * np.pi * df["hour"] / 24.0)
     df["hour_cos"] = np.cos(2 * np.pi * df["hour"] / 24.0)
     df["dow_sin"] = np.sin(2 * np.pi * df["day_of_week"] / 7.0)
@@ -50,10 +50,10 @@ def clean_and_impute(df: pd.DataFrame) -> pd.DataFrame:
 
     for c in ["signed_firmware", "identity_mismatch"]:
         if c in df.columns:
-            # In CSV, booleans are True/False; coerce gracefully
+            # CSV has True False strings. Map them to real booleans
             df[c] = df[c].astype("string").str.lower().map({"true": True, "false": False}).astype("boolean")
 
-    # Basic plausibility constraints (treat implausible as missing)
+    # Drop values outside believable bounds
     if "cpu_load_pct" in df.columns:
         df.loc[(df["cpu_load_pct"] < 0) | (df["cpu_load_pct"] > 100), "cpu_load_pct"] = np.nan
     if "memory_usage_pct" in df.columns:
@@ -65,12 +65,12 @@ def clean_and_impute(df: pd.DataFrame) -> pd.DataFrame:
     if "anomaly_score" in df.columns:
         df.loc[(df["anomaly_score"] < 0) | (df["anomaly_score"] > 1), "anomaly_score"] = np.nan
 
-    # Device-level smoothing/imputation for telemetry that should be continuous-ish
+    # Smooth and fill per device for sensor like fields
     df = df.sort_values(["device_id", "timestamp_utc"])
     for c in ["cpu_load_pct", "memory_usage_pct", "battery_level_pct", "temperature_c"]:
         if c not in df.columns:
             continue
-        # Median filter via rolling median, then fill gaps using forward/backward fill within device
+        # Rolling median then forward back fill within each device
         df[c + "_roll_med"] = (
             df.groupby("device_id")[c]
             .transform(lambda s: s.rolling(5, center=True, min_periods=1).median())
@@ -78,12 +78,12 @@ def clean_and_impute(df: pd.DataFrame) -> pd.DataFrame:
         df[c] = df[c].fillna(df[c + "_roll_med"])
         df[c] = df.groupby("device_id")[c].transform(lambda s: s.ffill().bfill())
 
-    # Network stats: fill missing with 0 only if clearly a count field; otherwise keep as NA
+    # For byte and packet counts treat blank as zero. Other gaps stay missing
     for c in ["bytes_in", "bytes_out", "packets"]:
         if c in df.columns:
             df[c] = df[c].fillna(0)
 
-    # Feature engineering: ratios + logs (robust for spikes)
+    # Ratios and logs to soften spikes
     eps = 1e-6
     if {"bytes_out", "bytes_in"}.issubset(df.columns):
         df["out_in_ratio"] = (df["bytes_out"] + eps) / (df["bytes_in"] + eps)
@@ -102,7 +102,7 @@ def clean_and_impute(df: pd.DataFrame) -> pd.DataFrame:
 def add_outlier_flags(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # Per-device robust z-score (median/MAD) to capture spikes/drifts
+    # Robust z by device with median and MAD
     def robust_z(s: pd.Series) -> pd.Series:
         med = s.median()
         mad = (s - med).abs().median()
@@ -116,9 +116,7 @@ def add_outlier_flags(df: pd.DataFrame) -> pd.DataFrame:
         df[f"{c}_rz"] = z
         df[f"{c}_spike"] = (z.abs() >= 4).fillna(False)
 
-    # Protocol misuse heuristic (simple, explainable rules)
-    # - unexpected high outbound via plain HTTP on sensitive devices
-    # - suspicious ports on badge scanners
+    # Simple rules for odd protocol and port use
     df["protocol_misuse_flag"] = False
     if {"protocol", "device_type", "port"}.issubset(df.columns):
         is_badge = df["device_type"].astype("string").str.lower().eq("badge_scanner")
@@ -131,20 +129,33 @@ def add_outlier_flags(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Prepare features for IoT threat monitoring story.")
-    ap.add_argument("--csv", required=True, help="Path to IoT_smart_building_telemetry.csv")
-    ap.add_argument("--out", default="artifacts/features.parquet", help="Output parquet path")
+    ap = argparse.ArgumentParser(description="Prepare features for the IoT threat monitoring work")
+    ap.add_argument(
+        "csv",
+        nargs="?",
+        default="IoT_smart_building_telemetry.csv",
+        help="Input csv default file name in the current folder",
+    )
+    ap.add_argument(
+        "out",
+        nargs="?",
+        default="artifacts/features.parquet",
+        help="Output parquet file default is under artifacts",
+    )
     args = ap.parse_args()
 
+    csv_path = Path(args.csv)
+    if not csv_path.is_file():
+        raise SystemExit(f"Cannot find {csv_path}. Run from the repo root or pass the csv path as the first argument")
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(args.csv)
+    df = pd.read_csv(csv_path)
     df = add_time_features(df)
     df = clean_and_impute(df)
     df = add_outlier_flags(df)
 
-    # Convenience: binary label
+    # 0 1 label for models
     df["y_compromise"] = df["ground_truth_compromise"].astype("Int64").fillna(0).astype(int)
 
     df.to_parquet(out_path, index=False)

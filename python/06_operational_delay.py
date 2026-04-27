@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Operational delay: compare first AI-based alert vs a manual-monitoring proxy.
+Operational delay. Compare the first model based alert to a hand built rule proxy.
 
-The public CSV does not include real SOC "manual detection" timestamps. We define
-a transparent proxy: first time per device where a human-driven rule would
-typically fire (integrity/signature/identity/flagged behaviour). Report these
-assumptions in your write-up; replace with real fields if you get them in class.
+The CSV we use does not list real hand off timestamps for a SOC. We use a
+simple proxy. First time on each device where integrity signature identity or
+our misuse flag would make ops look twice. Talk about that in the report. Swap
+in real fields if the course data adds them.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def _ensure_dir(p: Path) -> None:
 
 
 def manual_rule_mask(df: pd.DataFrame) -> pd.Series:
-    """Proxy for 'ops notices something' without using ground_truth_compromise directly."""
+    """Marks rows a human might notice without using the compromise label as input."""
     fin = df["firmware_integrity"].astype("string").str.strip().str.lower()
     bad_integrity = fin.notna() & (fin != "ok")
 
@@ -120,14 +120,14 @@ def plot_timeline(m: pd.DataFrame, out_path: Path) -> None:
     for _, r in m.iterrows():
         if pd.notna(r["first_ai_alert_ts"]):
             points.append(
-                (r["device_id"], r["first_ai_alert_ts"], "AI alert (score≥thr)", r.get("device_type", ""))
+                (r["device_id"], r["first_ai_alert_ts"], "AI alert at or above threshold", r.get("device_type", ""))
             )
         if pd.notna(r["first_manual_proxy_ts"]):
             points.append(
                 (r["device_id"], r["first_manual_proxy_ts"], "Manual rule proxy", r.get("device_type", ""))
             )
         points.append(
-            (r["device_id"], r["first_compromise_ts"], "First label=compromised", r.get("device_type", ""))
+            (r["device_id"], r["first_compromise_ts"], "First known compromise on timeline", r.get("device_type", ""))
         )
     if not points:
         return
@@ -137,7 +137,7 @@ def plot_timeline(m: pd.DataFrame, out_path: Path) -> None:
         x="ts",
         y="device_id",
         color="milestone",
-        title="Detection milestones (per device) — up to 20 devices with compromise",
+        title="Detection milestones per device. Up to 20 devices with compromise",
     )
     fig.update_layout(
         xaxis_title="Time (UTC)",
@@ -148,10 +148,14 @@ def plot_timeline(m: pd.DataFrame, out_path: Path) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="AI vs manual-proxy detection timing for compromised devices.")
+    ap = argparse.ArgumentParser(
+        description="AI versus manual rule proxy timing for devices with compromise events"
+    )
     ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
     ap.add_argument("--out-dir", default="artifacts/operational", help="Output directory")
-    ap.add_argument("--ai-threshold", type=float, default=0.5, help="anomaly_score threshold for an AI 'alert'")
+    ap.add_argument(
+        "--ai-threshold", type=float, default=0.5, help="anomaly score cutoff that counts as an AI alert"
+    )
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -202,10 +206,13 @@ def main() -> None:
                 y="lead_minutes",
                 color="channel",
                 points="all",
-                title="Lead time (minutes) from signal to first labelled compromise (same device)",
+                title="Lead time in minutes from signal to first labelled compromise on the same device",
             )
             fig.add_hline(
-                0, line_dash="dash", line_color="#999", annotation_text="0 = at compromise time; positive = before"
+                0,
+                line_dash="dash",
+                line_color="#999",
+                annotation_text="zero at compromise. Positive means the signal is before that time",
             )
             fig.write_html(out_dir / "delay_boxplot_ai_vs_manual.html")
 

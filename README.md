@@ -1,31 +1,34 @@
-# Mini-project #5 — AI-assisted IoT threat monitoring
+# Mini-project 5 - AI-assisted IoT threat monitoring
 
-This repo contains a **reproducible Python + R workflow** for analyzing `IoT_smart_building_telemetry.csv` and building a visual narrative about **device behavior, anomalies, and operational risk**.
+This repo is a Python and R workflow for working with `IoT_smart_building_telemetry.csv` and for building a visual story about device behaviour, anomalies, and risk.
 
-## Repository layout
+## What is in the repo
 
-- `data/`
-  - (optional) place datasets here if you prefer (current dataset is in repo root)
-- `python/`
-  - `00_csv_profile.py`: fast dataset profiling (no pandas)
-  - `01_prepare_features.py`: cleaning + time features + outlier flags (writes `artifacts/features.parquet`)
-  - `02_time_series_patterns.py`: rhythm / periodicity / spikes (writes plots to `artifacts/plots/`)
-  - `05_statsmodels_trends.py`: **statsmodels** STL / OLS trend + HP filter on resampled series (`artifacts/trends/`)
-  - `03_ai_evaluation.py`: confusion matrix, ROC, calibration, threshold trade-offs
-  - `04_floorplan_risk_map.py`: floorplan-like risk maps by building/floor/room
-  - `06_operational_delay.py`: AI alert vs manual-rule **proxy** delays (see script docstring; `artifacts/operational/`)
-  - `07_risk_matrix.py`: **device type × firmware** risk table + heatmaps (`artifacts/risk_matrix/`)
-  - `08_excel_starter_workbook.py`: starter **.xlsx** for PivotTables + KPI summary (`artifacts/excel/`, needs `openpyxl`)
-- `design/`
-  - `workflow.mermaid`: **decision flow** (device event → AI → analyst → verdict) for Mermaid Live / report
-- `r/`
-  - `01_modelling_clustering.R`: predictive modelling + feature importance + clustering
-- `artifacts/`
-  - generated outputs (created by scripts)
+`data/` optional place for copies of the CSV the course gives you (the sample file may sit in the repo root).
+
+`python/` scripts
+
+- `00_csv_profile.py` profiles the CSV quickly without pandas
+- `01_prepare_features.py` cleans data and adds time features outputs go to `artifacts/features.parquet`
+- `02_time_series_patterns.py` rhythm and spike plots in `artifacts/plots/`
+- `05_statsmodels_trends.py` STL or OLS trends and HP filter in `artifacts/trends/`
+- `03_ai_evaluation.py` ROC calibration confusion matrix in `artifacts/ai_eval/`
+- `04_floorplan_risk_map.py` simple room layout maps in `artifacts/floorplan/`
+- `06_operational_delay.py` AI versus manual proxy timing in `artifacts/operational/`
+- `07_risk_matrix.py` device type and firmware tables in `artifacts/risk_matrix/`
+- `08_excel_starter_workbook.py` builds a starter xlsx needs `openpyxl` in `artifacts/excel/`
+
+`design/`
+
+- `workflow.mermaid` decision flow for reports open in Mermaid Live if you want a PNG
+
+`r/`
+
+- `01_modelling_clustering.R` models and clustering
+
+`artifacts/` created when you run scripts gitignored
 
 ## Setup
-
-Create a virtual environment and install dependencies:
 
 ```bash
 python -m venv .venv
@@ -33,81 +36,76 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run order (step-by-step)
+## Run order
 
-1) Quick profiling (works without pandas):
+Run these from the repo folder. The csv and parquet paths use the usual default names so you do not need extra flags. Put `IoT_smart_building_telemetry.csv` in the same folder or pass paths as arguments where the script expects them (see each file).
 
-```bash
-python python/00_csv_profile.py --csv IoT_smart_building_telemetry.csv
-```
-
-2) Build cleaned feature table:
+Step 1 quick profiling
 
 ```bash
-python python/01_prepare_features.py --csv IoT_smart_building_telemetry.csv
+python python/00_csv_profile.py
 ```
 
-3) Create “operational rhythm” + time-series plots:
+Step 2 features
 
 ```bash
-python python/02_time_series_patterns.py --features artifacts/features.parquet
+python python/01_prepare_features.py
 ```
 
-4) Statsmodels trend / seasonal analysis (required by brief):
+Step 3 time series plots
 
 ```bash
-python python/05_statsmodels_trends.py --features artifacts/features.parquet
+python python/02_time_series_patterns.py
 ```
 
-5) Evaluate AI anomaly score as a detector:
+Step 4 statsmodels
 
 ```bash
-python python/03_ai_evaluation.py --features artifacts/features.parquet
+python python/05_statsmodels_trends.py
 ```
 
-6) Produce floorplan-like risk maps:
+Step 5 AI evaluation
 
 ```bash
-python python/04_floorplan_risk_map.py --features artifacts/features.parquet
+python python/03_ai_evaluation.py
 ```
 
-7) Operational delay (AI vs **manual-monitoring proxy**; document assumptions in your report):
+Step 6 floor map
 
 ```bash
-python python/06_operational_delay.py --features artifacts/features.parquet --ai-threshold 0.5
+python python/04_floorplan_risk_map.py
 ```
 
-8) Risk matrix (patching / monitoring priorities):
+Step 7 delays
 
 ```bash
-python python/07_risk_matrix.py --features artifacts/features.parquet
+python python/06_operational_delay.py
 ```
 
-9) (Optional) Starter Excel file for PivotTables + KPIs (run 03 and 06 first to fill K_summary):
+Step 8 risk matrix
 
 ```bash
-python python/08_excel_starter_workbook.py --features artifacts/features.parquet
+python python/07_risk_matrix.py
 ```
 
-10) Run R modelling + clustering:
+Step 9 optional Excel starter run 03 and 06 first so KPIs can fill in
 
 ```bash
-Rscript r/01_modelling_clustering.R artifacts/features.parquet
+python python/08_excel_starter_workbook.py
 ```
 
-## Excel deliverables (PivotTables + KPIs)
+Step 10 R
 
-Use the feature table produced in step (2) and create PivotTables/KPIs:
+```bash
+Rscript r/01_modelling_clustering.R
+```
 
-- **Pivot dimensions**: `device_type`, `building`, `floor`, `room`, `day_of_week`, `hour`
-- **Measures**: events, compromised events, median anomaly score, outbound bytes sum/median, false positives/negatives at threshold
-- **KPI cards**: device count, compromised device count, precision/recall/F1 at chosen threshold(s), median detection delay (AI vs manual)
+## Excel part of the coursework
 
-(A concrete “Excel build sheet” template is provided in `python/03_ai_evaluation.py` outputs as CSV summaries. Delay KPIs can be taken from `artifacts/operational/kpi_delay_summary.csv` — note the **proxy** definition for “manual” in `06_operational_delay.py`.)
+Use the feature table from step 2. Build pivots with rows and columns like `device_type` `building` `floor` `room` `day_of_week` `hour`. Values can be event counts sums of compromise flags median anomaly score and bytes out. KPI cards can list device counts compromised counts precision recall F1 at a chosen threshold and median delay from the operational script. CSV helpers sit in `artifacts/ai_eval/` and `artifacts/operational/kpi_delay_summary.csv` the manual side in that file is a proxy see the script docstring.
 
-## What to do next (non-code deliverables)
+## After the code runs
 
-1. **Excel**: use `python/08_excel_starter_workbook.py` output as a base, add PivotTable + slicers on `data_for_pivot`, and refine KPIs.
-2. **Visual narrative**: arrange exported Plotly HTML (or static screenshots) into your report: rhythm → AI evaluation → floor risk → delays → risk matrix.
-3. **Workflow diagram**: start from `design/workflow.mermaid` — open in [Mermaid Live](https://mermaid.live) and export as PNG/SVG, or rebuild in PowerPoint.
+Finish the Excel workbook with real pivot tables and cards. Lay out the story in your report using the HTML plots. Export the workflow from `design/workflow.mermaid` using mermaid dot live or redraw in PowerPoint.
 
+If the brief wants all code in one appendix file, run `python appendix/build_appendix_code.py` and attach `artifacts/appendix_code.txt` or copy from it into your document.

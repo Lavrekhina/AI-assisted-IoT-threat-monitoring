@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Build a starter .xlsx for the assessment: one sheet of row-level fields for PivotTables,
-optional KPI sheet if you have already run 03 + 06, and a short how-to sheet.
-Requires: pip install openpyxl
+Build a starter xlsx for the course. One sheet of rows for pivots. KPI sheet if
+you already ran steps 03 and 06. Short how to sheet. Needs openpyxl via pip.
 """
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ try:
     from openpyxl import Workbook
     from openpyxl.utils.dataframe import dataframe_to_rows
 except ImportError as e:  # pragma: no cover
-    raise SystemExit("Install openpyxl: pip install openpyxl") from e
+    raise SystemExit("Install openpyxl first using pip") from e
 
 
 PIVOT_COLUMNS = [
@@ -62,7 +61,7 @@ def load_kpi_rows(
         rows.append(
             (
                 "note",
-                "Run 03_ai_evaluation.py to generate metrics.json, then re-run this script.",
+                "Run 03_ai_evaluation.py first to get metrics.json then run this script again",
             )
         )
     kpi = op_dir / "kpi_delay_summary.csv"
@@ -74,10 +73,10 @@ def load_kpi_rows(
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Export starter Excel workbook for PivotTables + KPIs.")
+    ap = argparse.ArgumentParser(description="Export starter Excel workbook for pivots and KPIs")
     ap.add_argument("--features", default="artifacts/features.parquet")
     ap.add_argument("--out", default="artifacts/excel/iot_telemetry_pivot_starter.xlsx")
-    ap.add_argument("--max-rows", type=int, default=0, help="0 = all rows")
+    ap.add_argument("--max-rows", type=int, default=0, help="zero means all rows")
     args = ap.parse_args()
 
     out_path = Path(args.out)
@@ -100,12 +99,12 @@ def main() -> None:
 
     whelp = wb.create_sheet("pivot_howto")
     lines = [
-        "1. Select any cell on 'data_for_pivot', then Insert → PivotTable (Excel desktop).",
-        "2. Rows/columns: device_type, building, floor, room, day_of_week, hour.",
-        "3. Values: Count of device_id, Sum of y_compromise, Median of anomaly_score, Sum of bytes_out.",
-        "4. Slicers: hour, device_type, compromise_type. Filter to high_anomaly = anomaly_score in top decile in a helper column if needed.",
-        "5. KPI cards: on a new sheet, link to =COUNTA(unique device_id) from pivot or use formulas from K_summary.",
-        "6. Optional: add threshold columns with =IF([@anomaly_score]>=$T$1,1,0) and compare to y_compromise for FP/FN.",
+        "Pick a cell on data_for_pivot. Use Insert then Pivot table on desktop Excel",
+        "Put device_type building floor room day_of_week hour in rows or columns as you like",
+        "Add count of device_id sum of y_compromise median anomaly score sum of bytes out",
+        "Add slicers for hour device_type compromise_type. Add a helper column for top decile if you want",
+        "KPI cards on another sheet. Point cells at the pivot or at K_summary",
+        "Optional. Add a flag when anomaly score is above a cell T1 and compare to y for false pos neg study",
     ]
     for i, line in enumerate(lines, start=1):
         whelp.cell(row=i, column=1, value=line)

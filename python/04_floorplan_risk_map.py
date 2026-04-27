@@ -37,7 +37,7 @@ def make_floor_grid(df: pd.DataFrame) -> pd.DataFrame:
         )
     )
 
-    # Stable room ordering per (building,floor)
+    # Stable room order inside each building and floor
     room_agg["room_order"] = room_agg.groupby(["building", "floor"])["room"].transform(
         lambda s: pd.Series(pd.Categorical(s, categories=sorted(s.unique()), ordered=True)).cat.codes
     )
@@ -47,7 +47,7 @@ def make_floor_grid(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def plot_floorplan(room_agg: pd.DataFrame, out_dir: Path) -> None:
-    # Risk heatmap sized by device density
+    # Dots size follows device count
     fig = px.scatter(
         room_agg,
         x="x",
@@ -57,7 +57,7 @@ def plot_floorplan(room_agg: pd.DataFrame, out_dir: Path) -> None:
         facet_col="building",
         color_continuous_scale="RdYlBu_r",
         hover_data=["room", "events", "devices", "compromised_events", "mean_anomaly", "bytes_out_sum"],
-        title="Floorplan-like risk map: compromise rate by room (size = device density)",
+        title="Floorplan style risk map. Compromise rate by room. Dot size is device count",
     )
     fig.update_yaxes(autorange="reversed", title="floor")
     fig.update_xaxes(title="room index (ordered)")
@@ -73,7 +73,7 @@ def plot_floorplan(room_agg: pd.DataFrame, out_dir: Path) -> None:
         facet_col="building",
         color_continuous_scale="Viridis",
         hover_data=["room", "events", "devices", "compromised_events", "compromise_rate", "bytes_out_sum"],
-        title="Floorplan-like map: mean anomaly score by room",
+        title="Floorplan style map. Mean anomaly score by room",
     )
     fig2.update_yaxes(autorange="reversed", title="floor")
     fig2.update_xaxes(title="room index (ordered)")
@@ -82,7 +82,7 @@ def plot_floorplan(room_agg: pd.DataFrame, out_dir: Path) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Generate floorplan-like risk maps from feature table.")
+    ap = argparse.ArgumentParser(description="Generate floorplan style risk maps from feature table")
     ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
     ap.add_argument("--out-dir", default="artifacts/floorplan", help="Output directory")
     args = ap.parse_args()

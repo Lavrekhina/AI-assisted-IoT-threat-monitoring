@@ -158,36 +158,49 @@ def profile_csv(path: Path) -> Dict[str, Any]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Fast CSV profiler (no pandas).")
-    ap.add_argument("--csv", required=True, help="Path to IoT_smart_building_telemetry.csv")
+    ap = argparse.ArgumentParser(description="Fast CSV profiler without pandas")
+    ap.add_argument(
+        "csv",
+        nargs="?",
+        default="IoT_smart_building_telemetry.csv",
+        help="Path to the telemetry csv default is IoT smart building telemetry in this folder",
+    )
     args = ap.parse_args()
 
     p = Path(args.csv)
+    if not p.is_file():
+        raise SystemExit(f"Cannot find {p}. Run from the repo folder or pass the file path as the first argument")
     prof = profile_csv(p)
 
-    print(f"File: {prof['path']}")
-    print(f"Rows: {prof['rows']}")
-    print(f"Columns ({len(prof['cols'])}): {', '.join(prof['cols'])}")
-    print(f"Compromise rate: {prof['compromise_rate']:.3f}" if prof["compromise_rate"] is not None else "Compromise rate: n/a")
-    print(f"Timestamp parse failures: {prof['timestamp_parse_fail']}")
+    print(f"File {prof['path']}")
+    print(f"Rows {prof['rows']}")
+    print(f"Column count {len(prof['cols'])}. Names {', '.join(prof['cols'])}")
+    if prof["compromise_rate"] is not None:
+        print(f"Compromise rate {prof['compromise_rate']:.3f}")
+    else:
+        print("Compromise rate n a")
+    print(f"Timestamp parse failures {prof['timestamp_parse_fail']}")
 
-    print("\nMissingness (top 10):")
+    print("\nMissingness top 10")
     miss_sorted = sorted(
         prof["missing_rate_by_col"].items(),
         key=lambda kv: (-kv[1] if kv[1] is not None else 0.0, kv[0]),
     )
     for col, rate in miss_sorted[:10]:
-        print(f"- {col}: {rate:.1%}")
+        print(f"  {col} {rate:.1%}")
 
-    print("\nNumeric summaries:")
+    print("\nNumeric summaries")
     for col, s in sorted(prof["numeric_summary"].items()):
         print(
-            f"- {col}: n={s['n']} missing={s['n_missing']} mean={_fmt(s['mean'])} std={_fmt(s['std'])} min={_fmt(s['min'])} max={_fmt(s['max'])}"
+            f"  {col} n {s['n']} missing {s['n_missing']} mean {_fmt(s['mean'])} std {_fmt(s['std'])}"
+            f" min {_fmt(s['min'])} max {_fmt(s['max'])}"
         )
 
-    print("\nTop categories (top 10 each):")
+    print("\nTop categories top 10 each")
     for cat, items in prof["top_categories"].items():
-        print(f"- {cat}: " + ", ".join([f"{k} ({v})" for k, v in items]))
+        line = "  " + cat + " "
+        line += " ".join(f"{k} count {v}" for k, v in items)
+        print(line)
 
 
 def _fmt(x: Any) -> str:

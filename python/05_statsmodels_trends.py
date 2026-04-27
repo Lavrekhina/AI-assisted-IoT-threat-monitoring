@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Time-series trend and seasonal decomposition using statsmodels (assessment: trend analysis)."""
+"""Time series trend and seasonal decomposition with statsmodels. Course asks for trend analysis."""
 from __future__ import annotations
 
 import argparse
@@ -119,7 +119,7 @@ def plot_components(decomp: pd.DataFrame, title: str, out_path: Path) -> None:
         rows=4,
         cols=1,
         shared_xaxes=True,
-        subplot_titles=("Observed", "Trend", "Seasonal", "Residual / innovations"),
+        subplot_titles=("Observed", "Trend", "Seasonal", "Residual and innovations"),
         vertical_spacing=0.05,
     )
     fig.add_trace(
@@ -155,7 +155,7 @@ def plot_components(decomp: pd.DataFrame, title: str, out_path: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Statsmodels: STL / OLS trend on resampled IoT event and anomaly time series."
+        description="Statsmodels STL or OLS trend on resampled IoT event and anomaly time series"
     )
     ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
     ap.add_argument("--out-dir", default="artifacts/trends", help="Output directory")
@@ -171,7 +171,7 @@ def main() -> None:
     h_events = hourly_event_series(df)
     h_events.to_csv(out_dir / "series_hourly_event_count.csv", index=True)
     de1, m1 = decompose_event_volume(h_events)
-    plot_components(de1, f"Event volume — {m1}", out_dir / "decomposition_event_volume.html")
+    plot_components(de1, f"Event volume. {m1}", out_dir / "decomposition_event_volume.html")
     if not de1.empty:
         de1.to_csv(out_dir / "decomposition_event_volume_components.csv", index=True)
 
@@ -180,7 +180,7 @@ def main() -> None:
     de2, m2 = decompose_anomaly(d_ano)
     plot_components(
         de2,
-        f"Mean anomaly score — {m2}",
+        f"Mean anomaly score. {m2}",
         out_dir / "decomposition_mean_anomaly_score.html",
     )
     if not de2.empty:
@@ -195,13 +195,13 @@ def main() -> None:
         )
         fig.add_trace(go.Scatter(x=cyc.index, y=cyc.values, name="HP cycle", line=dict(color="#D64550")))
         fig.update_layout(
-            title="Hodrick–Prescott filter on daily mean anomaly score (cycle component)",
+            title="Hodrick Prescott filter on daily mean anomaly score. Cycle part",
             margin=dict(l=40, r=20, t=60, b=40),
         )
         fig.write_html(out_dir / "hpfilter_daily_mean_anomaly.html")
         pd.DataFrame({"daily_mean": s_d, "hp_cycle": cyc}).to_csv(out_dir / "hpfilter_daily_mean_anomaly.csv")
 
-    print(f"Wrote statsmodels outputs to {out_dir} (events: {m1!r}, anomaly: {m2!r})")
+    print(f"Wrote statsmodels outputs to {out_dir} events {m1!r} anomaly {m2!r}")
 
 
 if __name__ == "__main__":

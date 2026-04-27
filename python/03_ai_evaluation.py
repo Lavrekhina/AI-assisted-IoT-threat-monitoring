@@ -10,8 +10,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
-    ConfusionMatrixDisplay,
-    RocCurveDisplay,
     average_precision_score,
     brier_score_loss,
     confusion_matrix,
@@ -63,7 +61,7 @@ def plot_confusion_matrix(df: pd.DataFrame, threshold: float, out_dir: Path) -> 
         x=["pred_safe", "pred_compromised"],
         y=["true_safe", "true_compromised"],
         color_continuous_scale="Blues",
-        title=f"Confusion matrix at threshold ≥ {threshold:.2f}",
+        title=f"Confusion matrix at or above threshold {threshold:.2f}",
     )
     fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
     fig.write_html(out_dir / "confusion_matrix.html")
@@ -79,7 +77,7 @@ def plot_roc(df: pd.DataFrame, out_dir: Path) -> None:
     fig.add_trace(go.Scatter(x=fpr, y=tpr, mode="lines", name=f"ROC (AUC={auc:.3f})", line=dict(color="#2E86AB", width=3)))
     fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Chance", line=dict(color="#999999", dash="dash")))
     fig.update_layout(
-        title="ROC curve — anomaly score as compromise detector",
+        title="ROC curve. Anomaly score as compromise detector",
         xaxis_title="False Positive Rate",
         yaxis_title="True Positive Rate",
         margin=dict(l=40, r=20, t=60, b=40),
@@ -99,7 +97,7 @@ def plot_calibration(df: pd.DataFrame, out_dir: Path) -> None:
     fig.add_trace(go.Scatter(x=prob_pred, y=prob_true, mode="lines+markers", name="Model", line=dict(color="#D64550", width=3)))
     fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Perfectly calibrated", line=dict(color="#999999", dash="dash")))
     fig.update_layout(
-        title=f"Calibration curve (quantile bins) — Brier={brier:.3f}",
+        title=f"Calibration curve quantile bins. Brier {brier:.3f}",
         xaxis_title="Mean predicted anomaly score",
         yaxis_title="Empirical compromise rate",
         margin=dict(l=40, r=20, t=60, b=40),
@@ -109,7 +107,7 @@ def plot_calibration(df: pd.DataFrame, out_dir: Path) -> None:
 
 def export_excel_ready_summaries(df: pd.DataFrame, out_dir: Path) -> None:
     # Summaries intentionally simple for PivotTables / KPI cards.
-    # Thresholds are a policy choice; we export a table so the user can pick one.
+    # You pick the threshold. We dump a grid so you can choose in Excel or here
     thresholds = np.round(np.linspace(0.05, 0.95, 19), 2)
     ttab = threshold_table(df.dropna(subset=["anomaly_score"]), thresholds)
     ttab.to_csv(out_dir / "threshold_tradeoffs.csv", index=False)
@@ -130,7 +128,9 @@ def export_excel_ready_summaries(df: pd.DataFrame, out_dir: Path) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Evaluate anomaly score vs ground truth (ROC, CM, calibration).")
+    ap = argparse.ArgumentParser(
+        description="Evaluate anomaly score against ground truth. ROC confusion matrix calibration"
+    )
     ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
     ap.add_argument("--out-dir", default="artifacts/ai_eval", help="Output directory")
     ap.add_argument("--threshold", type=float, default=0.80, help="Decision threshold for confusion matrix visual")

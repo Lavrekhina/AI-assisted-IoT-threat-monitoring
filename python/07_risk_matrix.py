@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Risk matrix: device_type × firmware_version vs compromise rate and AI mean score.
+Risk matrix. Device type and firmware against compromise rate and mean model score.
 
-Use the CSV in Excel or the HTML heatmaps in the visual narrative (patching / segmentation priorities).
+Use the CSV in Excel or the heatmaps in the report when you talk about patching and net splits.
 """
 from __future__ import annotations
 
@@ -73,8 +73,8 @@ def heatmap_figure(
     )
     fig.update_layout(
         title=title,
-        xaxis_title="firmware_version",
-        yaxis_title="device_type",
+        xaxis_title="Firmware",
+        yaxis_title="Device type",
         margin=dict(l=40, r=20, t=60, b=120),
     )
     fig.update_xaxes(tickangle=-45)
@@ -82,10 +82,17 @@ def heatmap_figure(
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Device type × firmware risk matrix (events, compromise rate, AI score).")
+    ap = argparse.ArgumentParser(
+        description="Device type and firmware risk matrix. Event counts and rates"
+    )
     ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
     ap.add_argument("--out-dir", default="artifacts/risk_matrix", help="Output directory")
-    ap.add_argument("--min-events", type=int, default=3, help="Hide device×firmware cells with fewer events")
+    ap.add_argument(
+        "--min-events",
+        type=int,
+        default=3,
+        help="Do not show cells with fewer than this many events",
+    )
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -99,7 +106,7 @@ def main() -> None:
     m.to_csv(out_dir / "device_type_firmware_risk_matrix.csv", index=False)
 
     if m.empty:
-        print("No rows after min-events filter; lower --min-events")
+        print("No rows after min events filter. Try a lower min events value")
         return
 
     pr = m.pivot_table(index="device_type", columns="firmware_version", values="compromise_rate", aggfunc="first")
@@ -107,7 +114,7 @@ def main() -> None:
     fig1 = heatmap_figure(
         pr,
         pn,
-        "Compromise rate: device type × firmware version",
+        "Compromise rate by device type and firmware",
         "Reds",
         0.0,
         1.0,
@@ -119,7 +126,7 @@ def main() -> None:
     fig2 = heatmap_figure(
         ps,
         pn,
-        "Mean AI anomaly score: device type × firmware version",
+        "Mean AI anomaly score by device type and firmware",
         "Viridis",
         0.0,
         1.0,
