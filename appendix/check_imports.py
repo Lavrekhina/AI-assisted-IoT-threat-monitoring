@@ -11,6 +11,7 @@ MODULES = [
     "plotly",
     "pyarrow",
     "openpyxl",
+    "bs4",
 ]
 
 

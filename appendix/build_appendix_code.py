@@ -8,6 +8,8 @@ from pathlib import Path
 ORDER_PY = [
     "python/00_csv_profile.py",
     "python/01_prepare_features.py",
+    "python/features_io.py",
+    "python/plotly_report.py",
     "python/02_time_series_patterns.py",
     "python/03_ai_evaluation.py",
     "python/04_floorplan_risk_map.py",

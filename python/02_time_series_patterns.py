@@ -9,6 +9,9 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from features_io import read_features_dataframe, resolve_features_path
+from plotly_report import write_report_html
+
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
@@ -34,8 +37,11 @@ def plot_operational_rhythm(df: pd.DataFrame, out_dir: Path) -> None:
         color_continuous_scale="Blues",
         title="Building operational rhythm. Events by hour and day of week",
     )
-    fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
-    fig.write_html(out_dir / "rhythm_events_heatmap.html")
+    fig.update_layout(
+        height=480,
+        margin=dict(l=48, r=32, t=100, b=64),
+    )
+    write_report_html(fig, out_dir / "rhythm_events_heatmap.html")
 
     # Compromise rhythm overlay
     comp = df[df["y_compromise"] == 1]
@@ -55,14 +61,17 @@ def plot_operational_rhythm(df: pd.DataFrame, out_dir: Path) -> None:
             color_continuous_scale="Reds",
             title="Compromised events rhythm. Hour and day of week",
         )
-        fig2.update_layout(margin=dict(l=40, r=20, t=60, b=40))
-        fig2.write_html(out_dir / "rhythm_compromises_heatmap.html")
+        fig2.update_layout(
+            height=480,
+            margin=dict(l=48, r=32, t=100, b=64),
+        )
+        write_report_html(fig2, out_dir / "rhythm_compromises_heatmap.html")
 
 
 def plot_device_drifts(df: pd.DataFrame, out_dir: Path) -> None:
     # Drift check. bytes out per device over time and spikes
     df = df.dropna(subset=["ts"]).copy()
-    df["date_hour"] = df["ts"].dt.floor("H")
+    df["date_hour"] = df["ts"].dt.floor("h")
     agg = (
         df.groupby(["device_id", "device_type", "date_hour"], as_index=False)
         .agg(
@@ -83,8 +92,11 @@ def plot_device_drifts(df: pd.DataFrame, out_dir: Path) -> None:
         facet_row="device_type",
         title="Top outbound devices. Hourly bytes out. Spikes and drifts",
     )
-    fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
-    fig.write_html(out_dir / "timeseries_top_outbound_devices.html")
+    fig.update_layout(
+        height=700,
+        margin=dict(l=48, r=32, t=100, b=64),
+    )
+    write_report_html(fig, out_dir / "timeseries_top_outbound_devices.html")
 
 
 def plot_anomaly_distributions(df: pd.DataFrame, out_dir: Path) -> None:
@@ -103,8 +115,11 @@ def plot_anomaly_distributions(df: pd.DataFrame, out_dir: Path) -> None:
         title="Anomaly score distribution. Safe and compromised",
         color_discrete_map={"safe": "#2E86AB", "compromised": "#D64550"},
     )
-    fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
-    fig.write_html(out_dir / "anomaly_score_hist_safe_vs_comp.html")
+    fig.update_layout(
+        height=480,
+        margin=dict(l=48, r=32, t=100, b=64),
+    )
+    write_report_html(fig, out_dir / "anomaly_score_hist_safe_vs_comp.html")
 
     # By device type (small multiples)
     fig2 = px.histogram(
@@ -119,20 +134,29 @@ def plot_anomaly_distributions(df: pd.DataFrame, out_dir: Path) -> None:
         title="Anomaly score distribution by device type",
         color_discrete_map={"safe": "#2E86AB", "compromised": "#D64550"},
     )
-    fig2.update_layout(margin=dict(l=40, r=20, t=60, b=40))
-    fig2.write_html(out_dir / "anomaly_score_hist_by_device_type.html")
+    fig2.update_layout(
+        height=640,
+        margin=dict(l=48, r=32, t=100, b=64),
+    )
+    write_report_html(fig2, out_dir / "anomaly_score_hist_by_device_type.html")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Time series patterns and story plots")
-    ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
+    ap.add_argument(
+        "--features",
+        default="artifacts/features.parquet",
+        help="Parquet or CSV from 01_prepare_features.py (CSV used if parquet missing)",
+    )
     ap.add_argument("--out-dir", default="artifacts/plots", help="Output directory for html plots")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
     _ensure_dir(out_dir)
 
-    df = pd.read_parquet(args.features)
+    p = resolve_features_path(args.features)
+    print(f"Using features: {p}")
+    df = read_features_dataframe(p)
     df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
 
     plot_operational_rhythm(df, out_dir)

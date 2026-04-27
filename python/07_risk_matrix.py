@@ -12,6 +12,9 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 
+from features_io import read_features_dataframe, resolve_features_path
+from plotly_report import write_report_html
+
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
@@ -75,7 +78,9 @@ def heatmap_figure(
         title=title,
         xaxis_title="Firmware",
         yaxis_title="Device type",
-        margin=dict(l=40, r=20, t=60, b=120),
+        height=520,
+        width=720,
+        margin=dict(l=64, r=32, t=100, b=120),
     )
     fig.update_xaxes(tickangle=-45)
     return fig
@@ -85,7 +90,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         description="Device type and firmware risk matrix. Event counts and rates"
     )
-    ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
+    ap.add_argument(
+        "--features",
+        default="artifacts/features.parquet",
+        help="Parquet or CSV from 01_prepare_features.py (CSV used if parquet missing)",
+    )
     ap.add_argument("--out-dir", default="artifacts/risk_matrix", help="Output directory")
     ap.add_argument(
         "--min-events",
@@ -98,7 +107,9 @@ def main() -> None:
     out_dir = Path(args.out_dir)
     _ensure_dir(out_dir)
 
-    df = pd.read_parquet(args.features)
+    p = resolve_features_path(args.features)
+    print(f"Using features: {p}")
+    df = read_features_dataframe(p)
     if "y_compromise" not in df.columns:
         df["y_compromise"] = df.get("ground_truth_compromise", 0).fillna(0).astype(int)
 
@@ -120,7 +131,7 @@ def main() -> None:
         1.0,
         "pct",
     )
-    fig1.write_html(out_dir / "heatmap_compromise_rate.html")
+    write_report_html(fig1, out_dir / "heatmap_compromise_rate.html")
 
     ps = m.pivot_table(index="device_type", columns="firmware_version", values="mean_anomaly_score", aggfunc="first")
     fig2 = heatmap_figure(
@@ -132,7 +143,7 @@ def main() -> None:
         1.0,
         "score",
     )
-    fig2.write_html(out_dir / "heatmap_mean_anomaly_score.html")
+    write_report_html(fig2, out_dir / "heatmap_mean_anomaly_score.html")
 
     print(f"Wrote {len(m)} matrix rows to {out_dir}")
 

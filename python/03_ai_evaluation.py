@@ -18,6 +18,9 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+from features_io import read_features_dataframe, resolve_features_path
+from plotly_report import write_report_html
+
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
@@ -63,8 +66,12 @@ def plot_confusion_matrix(df: pd.DataFrame, threshold: float, out_dir: Path) -> 
         color_continuous_scale="Blues",
         title=f"Confusion matrix at or above threshold {threshold:.2f}",
     )
-    fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
-    fig.write_html(out_dir / "confusion_matrix.html")
+    fig.update_layout(
+        height=420,
+        width=520,
+        margin=dict(l=40, r=20, t=60, b=40),
+    )
+    write_report_html(fig, out_dir / "confusion_matrix.html")
 
 
 def plot_roc(df: pd.DataFrame, out_dir: Path) -> None:
@@ -80,9 +87,13 @@ def plot_roc(df: pd.DataFrame, out_dir: Path) -> None:
         title="ROC curve. Anomaly score as compromise detector",
         xaxis_title="False Positive Rate",
         yaxis_title="True Positive Rate",
+        xaxis=dict(range=[0, 1], showgrid=True),
+        yaxis=dict(range=[0, 1], showgrid=True),
+        height=520,
+        width=560,
         margin=dict(l=40, r=20, t=60, b=40),
     )
-    fig.write_html(out_dir / "roc_curve.html")
+    write_report_html(fig, out_dir / "roc_curve.html")
 
 
 def plot_calibration(df: pd.DataFrame, out_dir: Path) -> None:
@@ -100,9 +111,13 @@ def plot_calibration(df: pd.DataFrame, out_dir: Path) -> None:
         title=f"Calibration curve quantile bins. Brier {brier:.3f}",
         xaxis_title="Mean predicted anomaly score",
         yaxis_title="Empirical compromise rate",
+        xaxis=dict(range=[0, 1]),
+        yaxis=dict(range=[0, 1]),
+        height=520,
+        width=560,
         margin=dict(l=40, r=20, t=60, b=40),
     )
-    fig.write_html(out_dir / "calibration_curve.html")
+    write_report_html(fig, out_dir / "calibration_curve.html")
 
 
 def export_excel_ready_summaries(df: pd.DataFrame, out_dir: Path) -> None:
@@ -131,7 +146,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         description="Evaluate anomaly score against ground truth. ROC confusion matrix calibration"
     )
-    ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
+    ap.add_argument(
+        "--features",
+        default="artifacts/features.parquet",
+        help="Parquet or CSV from 01_prepare_features.py (CSV used if parquet missing)",
+    )
     ap.add_argument("--out-dir", default="artifacts/ai_eval", help="Output directory")
     ap.add_argument("--threshold", type=float, default=0.80, help="Decision threshold for confusion matrix visual")
     args = ap.parse_args()
@@ -139,8 +158,14 @@ def main() -> None:
     out_dir = Path(args.out_dir)
     _ensure_dir(out_dir)
 
-    df = pd.read_parquet(args.features)
+    p = resolve_features_path(args.features)
+    print(f"Using features: {p}")
+    df = read_features_dataframe(p)
     df = df.dropna(subset=["anomaly_score"]).copy()
+    if df["y_compromise"].nunique() < 2:
+        raise SystemExit(
+            "AI evaluation needs both classes in y_compromise; the table has only one level after filtering."
+        )
 
     y = df["y_compromise"].astype(int).values
     s = df["anomaly_score"].astype(float).values

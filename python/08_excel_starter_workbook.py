@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from features_io import PROJECT_ROOT, read_features_dataframe, resolve_features_path
+
 try:
     from openpyxl import Workbook
     from openpyxl.utils.dataframe import dataframe_to_rows
@@ -47,6 +49,19 @@ def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
 
+def _strip_timezone_for_excel(df: pd.DataFrame) -> pd.DataFrame:
+    """openpyxl cannot write tz aware datetimes. Store UTC wall time with no tz."""
+    out = df.copy()
+    for col in out.columns:
+        s = out[col]
+        if not isinstance(s.dtype, pd.DatetimeTZDtype):
+            continue
+        out[col] = s.dt.tz_convert("UTC").map(
+            lambda t: t.replace(tzinfo=None) if pd.notna(t) else t
+        )
+    return out
+
+
 def load_kpi_rows(
     ai_eval_dir: Path, op_dir: Path
 ) -> list[tuple[str, str]]:
@@ -74,7 +89,11 @@ def load_kpi_rows(
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Export starter Excel workbook for pivots and KPIs")
-    ap.add_argument("--features", default="artifacts/features.parquet")
+    ap.add_argument(
+        "--features",
+        default="artifacts/features.parquet",
+        help="Parquet or CSV from 01 (CSV if parquet missing)",
+    )
     ap.add_argument("--out", default="artifacts/excel/iot_telemetry_pivot_starter.xlsx")
     ap.add_argument("--max-rows", type=int, default=0, help="zero means all rows")
     args = ap.parse_args()
@@ -82,11 +101,14 @@ def main() -> None:
     out_path = Path(args.out)
     _ensure_dir(out_path.parent)
 
-    df = pd.read_parquet(args.features)
+    fp = resolve_features_path(args.features)
+    print(f"Using features: {fp}")
+    df = read_features_dataframe(fp)
     use = [c for c in PIVOT_COLUMNS if c in df.columns]
     df = df[use]
     if args.max_rows and len(df) > args.max_rows:
         df = df.head(args.max_rows)
+    df = _strip_timezone_for_excel(df)
 
     wb = Workbook()
     ws = wb.active
@@ -112,7 +134,7 @@ def main() -> None:
     wk = wb.create_sheet("K_summary")
     wk.cell(row=1, column=1, value="metric")
     wk.cell(row=1, column=2, value="value")
-    kpi = load_kpi_rows(Path("artifacts/ai_eval"), Path("artifacts/operational"))
+    kpi = load_kpi_rows(PROJECT_ROOT / "artifacts" / "ai_eval", PROJECT_ROOT / "artifacts" / "operational")
     for i, (a, b) in enumerate(kpi, start=2):
         wk.cell(row=i, column=1, value=a)
         wk.cell(row=i, column=2, value=b)

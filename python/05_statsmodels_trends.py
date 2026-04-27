@@ -10,8 +10,11 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import statsmodels.api as sm
-from statsmodels.tsa.filters.hpfilter import hpfilter
+from statsmodels.tsa.filters.hp_filter import hpfilter
 from statsmodels.tsa.seasonal import STL
+
+from features_io import read_features_dataframe, resolve_features_path
+from plotly_report import write_report_html
 
 
 def _ensure_dir(p: Path) -> None:
@@ -20,7 +23,7 @@ def _ensure_dir(p: Path) -> None:
 
 def hourly_event_series(df: pd.DataFrame) -> pd.Series:
     d = df.dropna(subset=["ts"]).copy()
-    d["h"] = d["ts"].dt.floor("H")
+    d["h"] = d["ts"].dt.floor("h")
     return d.groupby("h").size().astype(float).rename("n_events").sort_index()
 
 
@@ -149,22 +152,33 @@ def plot_components(decomp: pd.DataFrame, title: str, out_path: Path) -> None:
         row=4,
         col=1,
     )
-    fig.update_layout(height=900, title_text=title, showlegend=True, margin=dict(l=40, r=20, t=80, b=40))
-    fig.write_html(out_path)
+    fig.update_layout(
+        height=900,
+        title_text=title,
+        showlegend=True,
+        margin=dict(l=48, r=32, t=100, b=48),
+    )
+    write_report_html(fig, out_path)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Statsmodels STL or OLS trend on resampled IoT event and anomaly time series"
     )
-    ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
+    ap.add_argument(
+        "--features",
+        default="artifacts/features.parquet",
+        help="Parquet or CSV from 01_prepare_features.py (CSV used if parquet missing)",
+    )
     ap.add_argument("--out-dir", default="artifacts/trends", help="Output directory")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
     _ensure_dir(out_dir)
 
-    df = pd.read_parquet(args.features)
+    p = resolve_features_path(args.features)
+    print(f"Using features: {p}")
+    df = read_features_dataframe(p)
     df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
     df = df.dropna(subset=["ts"])
 
@@ -196,9 +210,10 @@ def main() -> None:
         fig.add_trace(go.Scatter(x=cyc.index, y=cyc.values, name="HP cycle", line=dict(color="#D64550")))
         fig.update_layout(
             title="Hodrick Prescott filter on daily mean anomaly score. Cycle part",
-            margin=dict(l=40, r=20, t=60, b=40),
+            height=480,
+            margin=dict(l=48, r=32, t=100, b=64),
         )
-        fig.write_html(out_dir / "hpfilter_daily_mean_anomaly.html")
+        write_report_html(fig, out_dir / "hpfilter_daily_mean_anomaly.html")
         pd.DataFrame({"daily_mean": s_d, "hp_cycle": cyc}).to_csv(out_dir / "hpfilter_daily_mean_anomaly.csv")
 
     print(f"Wrote statsmodels outputs to {out_dir} events {m1!r} anomaly {m2!r}")

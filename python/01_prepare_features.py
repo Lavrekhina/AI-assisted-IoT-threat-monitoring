@@ -123,7 +123,9 @@ def add_outlier_flags(df: pd.DataFrame) -> pd.DataFrame:
         df.loc[is_badge & ~df["port"].isin([443, 1812]), "protocol_misuse_flag"] = True
 
         is_http = df["protocol"].astype("string").str.upper().eq("HTTP")
-        df.loc[is_http & (df.get("bytes_out", 0) > df["bytes_out"].quantile(0.95)), "protocol_misuse_flag"] = True
+        if "bytes_out" in df.columns:
+            q95 = df["bytes_out"].quantile(0.95)
+            df.loc[is_http & (df["bytes_out"] > q95), "protocol_misuse_flag"] = True
 
     return df
 
@@ -159,7 +161,9 @@ def main() -> None:
     df["y_compromise"] = df["ground_truth_compromise"].astype("Int64").fillna(0).astype(int)
 
     df.to_parquet(out_path, index=False)
-    print(f"Wrote {len(df)} rows to {out_path}")
+    csv_out = out_path.with_suffix(".csv")
+    df.to_csv(csv_out, index=False)
+    print(f"Wrote {len(df)} rows to {out_path} and {csv_out}")
 
 
 if __name__ == "__main__":

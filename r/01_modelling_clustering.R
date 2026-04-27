@@ -1,25 +1,41 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages({
-  library(arrow)
   library(dplyr)
   library(ggplot2)
   library(tidyr)
   library(stringr)
   library(tidymodels)
   library(cluster)
-  library(factoextra)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) >= 1) {
   features_path <- args[[1]]
 } else {
-  features_path <- "artifacts/features.parquet"
+  features_path <- "artifacts/features.csv"
 }
 out_dir <- file.path("artifacts", "r")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
-df <- read_parquet(features_path) %>% as_tibble()
+read_feature_table <- function(path) {
+  is_parq <- grepl("\\.parquet$", path, ignore.case = TRUE)
+  is_csv <- grepl("\\.csv$", path, ignore.case = TRUE)
+  if (is_parq && requireNamespace("arrow", quietly = TRUE) && file.exists(path)) {
+    return(arrow::read_parquet(path) %>% tibble::as_tibble())
+  }
+  if (is_parq) {
+    path <- sub("\\.parquet$", ".csv", path, ignore.case = TRUE)
+  }
+  if (!file.exists(path)) {
+    stop("Cannot find ", path, " run python 01 first to build features csv")
+  }
+  if (requireNamespace("readr", quietly = TRUE)) {
+    return(readr::read_csv(path, show_col_types = FALSE, progress = FALSE))
+  }
+  tibble::as_tibble(utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE))
+}
+
+df <- read_feature_table(features_path)
 
 # Basic label and score checks
 df <- df %>%

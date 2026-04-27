@@ -16,6 +16,9 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 
+from features_io import read_features_dataframe, resolve_features_path
+from plotly_report import write_report_html
+
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
@@ -141,17 +144,22 @@ def plot_timeline(m: pd.DataFrame, out_path: Path) -> None:
     )
     fig.update_layout(
         xaxis_title="Time (UTC)",
-        margin=dict(l=40, r=20, t=60, b=40),
+        height=560,
+        margin=dict(l=48, r=32, t=100, b=64),
         legend_title_text="",
     )
-    fig.write_html(out_path)
+    write_report_html(fig, out_path)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="AI versus manual rule proxy timing for devices with compromise events"
     )
-    ap.add_argument("--features", default="artifacts/features.parquet", help="Parquet from 01_prepare_features.py")
+    ap.add_argument(
+        "--features",
+        default="artifacts/features.parquet",
+        help="Parquet or CSV from 01_prepare_features.py (CSV used if parquet missing)",
+    )
     ap.add_argument("--out-dir", default="artifacts/operational", help="Output directory")
     ap.add_argument(
         "--ai-threshold", type=float, default=0.5, help="anomaly score cutoff that counts as an AI alert"
@@ -161,7 +169,9 @@ def main() -> None:
     out_dir = Path(args.out_dir)
     _ensure_dir(out_dir)
 
-    df = pd.read_parquet(args.features)
+    p = resolve_features_path(args.features)
+    print(f"Using features: {p}")
+    df = read_features_dataframe(p)
     df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
     if "y_compromise" not in df.columns:
         df["y_compromise"] = df.get("ground_truth_compromise", 0).fillna(0).astype(int)
@@ -171,7 +181,7 @@ def main() -> None:
 
     c_ai = "minutes_from_ai_alert_to_first_compromise"
     c_m = "minutes_from_manual_proxy_to_first_compromise"
-    if not m.empty and m.get(c_ai) is not None and m[c_ai].notna().any():
+    if not m.empty and c_ai in m.columns and m[c_ai].notna().any():
         s = m[c_ai].dropna()
         s2 = m[c_m].dropna() if c_m in m.columns else pd.Series(dtype=float)
         kpi = pd.DataFrame(
@@ -214,7 +224,8 @@ def main() -> None:
                 line_color="#999",
                 annotation_text="zero at compromise. Positive means the signal is before that time",
             )
-            fig.write_html(out_dir / "delay_boxplot_ai_vs_manual.html")
+            fig.update_layout(height=420, margin=dict(l=48, r=32, t=100, b=64))
+            write_report_html(fig, out_dir / "delay_boxplot_ai_vs_manual.html")
 
     plot_timeline(m, out_dir / "detection_milestones_timeline.html")
     print(f"Wrote operational delay tables to {out_dir}")
