@@ -14,6 +14,7 @@ This repo contains a **reproducible Python + R workflow** for analyzing `IoT_sma
   - `03_ai_evaluation.py`: confusion matrix, ROC, calibration, threshold trade-offs
   - `04_floorplan_risk_map.py`: floorplan-like risk maps by building/floor/room
   - `06_operational_delay.py`: AI alert vs manual-rule **proxy** delays (see script docstring; `artifacts/operational/`)
+  - `07_risk_matrix.py`: **device type × firmware** risk table + heatmaps (`artifacts/risk_matrix/`)
 - `r/`
   - `01_modelling_clustering.R`: predictive modelling + feature importance + clustering
 - `artifacts/`
@@ -73,7 +74,13 @@ python python/04_floorplan_risk_map.py --features artifacts/features.parquet
 python python/06_operational_delay.py --features artifacts/features.parquet --ai-threshold 0.5
 ```
 
-8) Run R modelling + clustering:
+8) Risk matrix (patching / monitoring priorities):
+
+```bash
+python python/07_risk_matrix.py --features artifacts/features.parquet
+```
+
+9) Run R modelling + clustering:
 
 ```bash
 Rscript r/01_modelling_clustering.R artifacts/features.parquet
@@ -88,4 +95,10 @@ Use the feature table produced in step (2) and create PivotTables/KPIs:
 - **KPI cards**: device count, compromised device count, precision/recall/F1 at chosen threshold(s), median detection delay (AI vs manual)
 
 (A concrete “Excel build sheet” template is provided in `python/03_ai_evaluation.py` outputs as CSV summaries. Delay KPIs can be taken from `artifacts/operational/kpi_delay_summary.csv` — note the **proxy** definition for “manual” in `06_operational_delay.py`.)
+
+## What to do next (non-code deliverables)
+
+1. **Excel**: build PivotTables + KPI cards from `artifacts/features.parquet` (or exported CSVs) and the summary files under `artifacts/ai_eval/`, `artifacts/operational/`, and `artifacts/risk_matrix/`.
+2. **Visual narrative**: arrange exported Plotly HTML (or static screenshots) into your report: rhythm → AI evaluation → floor risk → delays → risk matrix.
+3. **Workflow diagram** (device event → AI risk bucket → analyst action → verdict): draw in PowerPoint, draw.io, or Mermaid in the appendix — the pipeline is not auto-generated here.
 
