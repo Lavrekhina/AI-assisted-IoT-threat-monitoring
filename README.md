@@ -10,8 +10,10 @@ This repo contains a **reproducible Python + R workflow** for analyzing `IoT_sma
   - `00_csv_profile.py`: fast dataset profiling (no pandas)
   - `01_prepare_features.py`: cleaning + time features + outlier flags (writes `artifacts/features.parquet`)
   - `02_time_series_patterns.py`: rhythm / periodicity / spikes (writes plots to `artifacts/plots/`)
+  - `05_statsmodels_trends.py`: **statsmodels** STL / OLS trend + HP filter on resampled series (`artifacts/trends/`)
   - `03_ai_evaluation.py`: confusion matrix, ROC, calibration, threshold trade-offs
   - `04_floorplan_risk_map.py`: floorplan-like risk maps by building/floor/room
+  - `06_operational_delay.py`: AI alert vs manual-rule **proxy** delays (see script docstring; `artifacts/operational/`)
 - `r/`
   - `01_modelling_clustering.R`: predictive modelling + feature importance + clustering
 - `artifacts/`
@@ -47,19 +49,31 @@ python python/01_prepare_features.py --csv IoT_smart_building_telemetry.csv
 python python/02_time_series_patterns.py --features artifacts/features.parquet
 ```
 
-4) Evaluate AI anomaly score as a detector:
+4) Statsmodels trend / seasonal analysis (required by brief):
+
+```bash
+python python/05_statsmodels_trends.py --features artifacts/features.parquet
+```
+
+5) Evaluate AI anomaly score as a detector:
 
 ```bash
 python python/03_ai_evaluation.py --features artifacts/features.parquet
 ```
 
-5) Produce floorplan-like risk maps:
+6) Produce floorplan-like risk maps:
 
 ```bash
 python python/04_floorplan_risk_map.py --features artifacts/features.parquet
 ```
 
-6) Run R modelling + clustering:
+7) Operational delay (AI vs **manual-monitoring proxy**; document assumptions in your report):
+
+```bash
+python python/06_operational_delay.py --features artifacts/features.parquet --ai-threshold 0.5
+```
+
+8) Run R modelling + clustering:
 
 ```bash
 Rscript r/01_modelling_clustering.R artifacts/features.parquet
@@ -73,5 +87,5 @@ Use the feature table produced in step (2) and create PivotTables/KPIs:
 - **Measures**: events, compromised events, median anomaly score, outbound bytes sum/median, false positives/negatives at threshold
 - **KPI cards**: device count, compromised device count, precision/recall/F1 at chosen threshold(s), median detection delay (AI vs manual)
 
-(A concrete “Excel build sheet” template is provided in `python/03_ai_evaluation.py` outputs as CSV summaries.)
+(A concrete “Excel build sheet” template is provided in `python/03_ai_evaluation.py` outputs as CSV summaries. Delay KPIs can be taken from `artifacts/operational/kpi_delay_summary.csv` — note the **proxy** definition for “manual” in `06_operational_delay.py`.)
 
