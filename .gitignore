@@ -2,3 +2,13 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Generated analysis outputs
+artifacts/
