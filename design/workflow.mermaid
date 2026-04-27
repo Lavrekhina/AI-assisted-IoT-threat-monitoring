@@ -1,0 +1,23 @@
+%% IoT SOC-style decision flow (paste into Mermaid Live, GitHub, or draw.io "From text")
+%% Render for your report / appendix as PNG/SVG from https://mermaid.live
+
+flowchart TD
+  E[("Device event<br/>(telemetry + network + identity)")]
+  S["AI model<br/>anomaly score 0-1"]
+  B{{"Risk bucket<br/>(policy thresholds)"}}
+  T["Analyst triage<br/>(context, floor, device type)"]
+  A["Actions: monitor / patch / isolate / revoke"]
+  V[("Final verdict<br/>(true positive / benign / escalated)")]
+
+  E --> S
+  S --> B
+  B -->|"below T_low"| M[("Routine monitoring")]
+  B -->|"T_low to T_high"| T
+  B -->|"above T_high"| A
+  T --> V
+  A --> V
+  M --> V
+
+  style B fill:#f4d35e,stroke:#333
+  style S fill:#2E86AB,color:#fff
+  style V fill:#6B8E23,color:#fff

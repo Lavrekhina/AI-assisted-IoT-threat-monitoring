@@ -15,6 +15,9 @@ This repo contains a **reproducible Python + R workflow** for analyzing `IoT_sma
   - `04_floorplan_risk_map.py`: floorplan-like risk maps by building/floor/room
   - `06_operational_delay.py`: AI alert vs manual-rule **proxy** delays (see script docstring; `artifacts/operational/`)
   - `07_risk_matrix.py`: **device type × firmware** risk table + heatmaps (`artifacts/risk_matrix/`)
+  - `08_excel_starter_workbook.py`: starter **.xlsx** for PivotTables + KPI summary (`artifacts/excel/`, needs `openpyxl`)
+- `design/`
+  - `workflow.mermaid`: **decision flow** (device event → AI → analyst → verdict) for Mermaid Live / report
 - `r/`
   - `01_modelling_clustering.R`: predictive modelling + feature importance + clustering
 - `artifacts/`
@@ -80,7 +83,13 @@ python python/06_operational_delay.py --features artifacts/features.parquet --ai
 python python/07_risk_matrix.py --features artifacts/features.parquet
 ```
 
-9) Run R modelling + clustering:
+9) (Optional) Starter Excel file for PivotTables + KPIs (run 03 and 06 first to fill K_summary):
+
+```bash
+python python/08_excel_starter_workbook.py --features artifacts/features.parquet
+```
+
+10) Run R modelling + clustering:
 
 ```bash
 Rscript r/01_modelling_clustering.R artifacts/features.parquet
@@ -98,7 +107,7 @@ Use the feature table produced in step (2) and create PivotTables/KPIs:
 
 ## What to do next (non-code deliverables)
 
-1. **Excel**: build PivotTables + KPI cards from `artifacts/features.parquet` (or exported CSVs) and the summary files under `artifacts/ai_eval/`, `artifacts/operational/`, and `artifacts/risk_matrix/`.
+1. **Excel**: use `python/08_excel_starter_workbook.py` output as a base, add PivotTable + slicers on `data_for_pivot`, and refine KPIs.
 2. **Visual narrative**: arrange exported Plotly HTML (or static screenshots) into your report: rhythm → AI evaluation → floor risk → delays → risk matrix.
-3. **Workflow diagram** (device event → AI risk bucket → analyst action → verdict): draw in PowerPoint, draw.io, or Mermaid in the appendix — the pipeline is not auto-generated here.
+3. **Workflow diagram**: start from `design/workflow.mermaid` — open in [Mermaid Live](https://mermaid.live) and export as PNG/SVG, or rebuild in PowerPoint.
 
